@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Finanças Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        :root { --primary: #4f46e5; --success: #10b981; --danger: #ef4444; --warning: #f59e0b; --info: #3b82f6; --bg-app: #f8fafc; --bg-card: #ffffff; --text-dark: #1e293b; --text-muted: #64748b; --border: #e2e8f0; }
+        [data-theme="dark"] { --bg-app: #0f172a; --bg-card: #1e293b; --text-dark: #f8fafc; --text-muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-app); color: var(--text-dark); padding-bottom: 100px; overflow-x: hidden; }
+        .app-header { background: var(--bg-card); padding: 15px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; text-align: center;}
+        .header-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .backup-row { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 5px; justify-content: center; }
+        .btn-mini { padding: 6px 12px; font-size: 0.65rem; border-radius: 20px; border: 1px solid var(--border); cursor: pointer; font-weight: 700; background: var(--bg-app); color: var(--text-dark); white-space: nowrap; }
+        .alarm-banner { display: none; margin: 12px 15px; padding: 12px; border-radius: 12px; font-size: 0.8rem; align-items: center; gap: 10px; color: white; background: var(--danger); }
+        .dashboard-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px; }
+        .stat-card { background: var(--bg-card); padding: 12px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .stat-card span { font-size: 0.6rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; display: block; }
+        .stat-card div { font-size: 0.9rem; font-weight: 800; margin-top: 4px; }
+        .container { padding: 0 15px; }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .main-card { background: var(--bg-card); border-radius: 16px; padding: 16px; border: 1px solid var(--border); margin-bottom: 15px; }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 350px; }
+        th { text-align: left; padding: 10px 8px; font-size: 0.7rem; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+        td { padding: 12px 8px; font-size: 0.85rem; border-bottom: 1px solid var(--border); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; width: 100%; height: 75px; background: var(--bg-card); border-top: 1px solid var(--border); display: flex; justify-content: space-around; align-items: center; padding-bottom: env(safe-area-inset-bottom); z-index: 1000; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.65rem; font-weight: 600; cursor: pointer; }
+        .nav-item.active { color: var(--primary); }
+        .btn { padding: 12px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; width: 100%; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .paid-row { opacity: 0.3; text-decoration: line-through; background: #f1f5f9; }
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index: 2000; display:none; align-items: flex-end; }
+        .modal-sheet { background: var(--bg-card); width: 100%; border-radius: 24px 24px 0 0; padding: 24px; }
+    </style>
+</head>
+<body>
+<header class="app-header">
+    <div class="header-top"><h1>FINANÇAS PRO</h1><button onclick="toggleTheme()">🌓</button></div>
+    <div class="backup-row">
+        <button class="btn-mini" onclick="exportarDados()">📤 Backup</button>
+        <button class="btn-mini" onclick="document.getElementById('fileInput').click()">📥 Restaurar</button>
+        <input type="file" id="fileInput" style="display:none" onchange="importarDados(event)">
+        <select id="month-selector" onchange="render()"></select>
+        <select id="year-selector" onchange="render()"></select>
+    </div>
+</header>
+<div id="alarm-banner" class="alarm-banner"><span>⏰</span> <span id="alarm-text"></span></div>
+<div class="dashboard-grid">
+    <div class="stat-card" style="border-top: 3px solid var(--info)"><span>Ganhos</span><div id="stat-inc">R$ 0</div></div>
+    <div class="stat-card" style="border-top: 3px solid var(--primary)"><span>Fixos</span><div id="stat-exp">R$ 0</div></div>
+    <div class="stat-card" style="border-top: 3px solid var(--danger)"><span>Atrasos</span><div id="stat-pen">R$ 0</div></div>
+    <div class="stat-card" style="border-top: 3px solid var(--warning)"><span>Saldo</span><div id="stat-bal">R$ 0</div></div>
+</div>
+<div class="container">
+    <section id="resumo" class="content-section active"><div id="tabelas-por-pessoa" style="display: grid; gap: 15px;"></div></section>
+    <section id="ganhos" class="content-section">
+        <div class="main-card"><input type="text" id="r-desc" placeholder="Ex: Salário" style="margin-bottom:10px; width:100%; padding:10px"><input type="number" id="r-val" placeholder="R$" style="margin-bottom:10px; width:100%; padding:10px"><button class="btn btn-success" onclick="addRecebido()">+ Adicionar Ganho</button></div>
+        <div class="main-card table-wrapper"><table><thead><tr><th>Desc</th><th>Valor</th><th>X</th></tr></thead><tbody id="recebidos-body"></tbody></table></div>
+    </section>
+    <section id="fixos" class="content-section">
+        <div class="main-card"><input type="number" id="f-dia" placeholder="Dia" style="margin-bottom:10px; width:100%; padding:10px"><input type="text" id="f-desc" placeholder="Conta" style="margin-bottom:10px; width:100%; padding:10px"><button class="btn btn-primary" onclick="addFixedAccount()">Salvar Fixa</button></div>
+        <div class="main-card table-wrapper"><table><thead><tr><th>Dia</th><th>Conta</th><th>Valor</th></tr></thead><tbody id="fixed-body"></tbody></table></div>
+    </section>
+    <section id="parcelas" class="content-section">
+        <div class="main-card"><input type="text" id="p-desc" placeholder="Item" style="margin-bottom:10px; width:100%; padding:10px"><input type="number" id="p-val" placeholder="R$" style="margin-bottom:10px; width:100%; padding:10px"><input type="number" id="p-qtd" placeholder="Vezes" style="margin-bottom:10px; width:100%; padding:10px"><input type="text" id="p-resp" placeholder="Responsável" style="margin-bottom:10px; width:100%; padding:10px"><div style="display:flex; gap:8px; margin-bottom:10px"><select id="p-start-m"></select><select id="p-start-y"></select></div><button class="btn btn-primary" onclick="addParcelamento()">Lançar</button></div>
+        <div class="main-card table-wrapper"><table><thead><tr><th>Item</th><th>Ano</th><th>Parc</th><th>Valor</th><th>Resp</th></tr></thead><tbody id="parcelas-body"></tbody></table></div>
+    </section>
+</div>
+<div id="modal-edit" class="modal-overlay" onclick="if(event.target==this) closeModals()">
+    <div class="modal-sheet">
+        <button id="modal-pay-btn" class="btn" style="height:60px; margin-bottom:20px" onclick="togglePayFromModal()"></button>
+        <input type="hidden" id="edit-id"><input type="hidden" id="edit-type">
+        <input type="text" id="edit-desc" style="margin-bottom:10px; width:100%; padding:10px"><input type="number" id="edit-val" style="margin-bottom:10px; width:100%; padding:10px"><input type="text" id="edit-resp" style="margin-bottom:10px; width:100%; padding:10px">
+        <button class="btn btn-primary" onclick="saveGlobalEdit()">Salvar</button>
+        <button class="btn" style="background:#fee2e2; color:red; margin-top:10px" onclick="deleteGlobal()">Excluir</button>
+    </div>
+</div>
+<nav class="bottom-nav">
+    <div class="nav-item active" onclick="openTab('resumo')">📊Resumo</div>
+    <div class="nav-item" onclick="openTab('ganhos')">💰Ganhos</div>
+    <div class="nav-item" onclick="openTab('fixos')">📌Fixos</div>
+    <div class="nav-item" onclick="openTab('parcelas')">💳Parc.</div>
+    <div class="nav-item" onclick="baixarPDF()">📥PDF</div>
+</nav>
+<script>
+    const meses = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+    const anos = [2024, 2025, 2026, 2027];
+    const STORAGE_KEY = 'financas_v_pwa_final';
+    let db = JSON.parse(localStorage.getItem(STORAGE_KEY)) || { fixed_accounts: [{ id: 1, d: '09', n: 'Cartão Black', r: 'Casa' }, { id: 2, d: '09', n: 'Caixa', r: 'Suzana' }], meses_dados: {}, parcelamentos: [] };
+    const mSel = document.getElementById('month-selector'), ySel = document.getElementById('year-selector');
+    const pMSel = document.getElementById('p-start-m'), pYSel = document.getElementById('p-start-y');
+    meses.forEach((m, i) => { mSel.innerHTML += `<option value="${i}" ${i === new Date().getMonth() ? 'selected' : ''}>${m}</option>`; pMSel.innerHTML += `<option value="${i}">${m}</option>`; });
+    anos.forEach(y => { ySel.innerHTML += `<option value="${y}" ${y === new Date().getFullYear() ? 'selected' : ''}>${y}</option>`; pYSel.innerHTML += `<option value="${y}">${y}</option>`; });
+    function save() { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); render(); }
+    function openTab(t) { document.querySelectorAll('.content-section, .nav-item').forEach(x => x.classList.remove('active')); document.getElementById(t).classList.add('active'); const items = document.querySelectorAll('.nav-item'); const map = {'resumo':0, 'ganhos':1, 'fixos':2, 'parcelas':3}; if(map[t] !== undefined) items[map[t]].classList.add('active'); }
+    function toggleTheme() { document.documentElement.getAttribute('data-theme') === 'dark' ? document.documentElement.removeAttribute('data-theme') : document.documentElement.setAttribute('data-theme', 'dark'); }
+    function closeModals() { document.getElementById('modal-edit').style.display = 'none'; }
+    function checkAlarms() { const today = new Date(); const curD = today.getDate(), curM = today.getMonth(), curY = today.getFullYear(), k = `${curM}_${curY}`; let overdue = []; db.fixed_accounts.forEach(acc => { if(!db.meses_dados[k]?.paid?.[acc.id] && parseInt(acc.d) < curD) overdue.push(acc.n); }); const banner = document.getElementById('alarm-banner'); if(overdue.length > 0) { banner.style.display = 'flex'; document.getElementById('alarm-text').innerText = `ATRASO: ${overdue.join(', ')}`; } else banner.style.display = 'none'; }
+    function toggleRespPay(resp, checked, valorTotal) { const k = `${mSel.value}_${ySel.value}`; if (!db.meses_dados[k]) db.meses_dados[k] = {paid:{}, recebidos:[], resp_parcelas_paid:{}}; if (!db.meses_dados[k].resp_parcelas_paid) db.meses_dados[k].resp_parcelas_paid = {}; if (!db.meses_dados[k].recebidos) db.meses_dados[k].recebidos = []; db.meses_dados[k].resp_parcelas_paid[resp] = checked; const autoId = `auto_pay_${resp}`; if(checked) { db.meses_dados[k].recebidos = db.meses_dados[k].recebidos.filter(x => x.id !== autoId); db.meses_dados[k].recebidos.push({ id: autoId, desc: `Pgto ${resp}`, val: valorTotal, isAuto: true }); } else { db.meses_dados[k].recebidos = db.meses_dados[k].recebidos.filter(x => x.id !== autoId); } save(); }
+    function addRecebido() { const k = `${mSel.value}_${ySel.value}`, desc = document.getElementById('r-desc').value, val = parseFloat(document.getElementById('r-val').value); if (!desc || isNaN(val)) return; if (!db.meses_dados[k]) db.meses_dados[k] = {recebidos:[]}; db.meses_dados[k].recebidos.push({ id: Date.now(), desc, val, isAuto: false }); save(); }
+    function addFixedAccount() { db.fixed_accounts.push({ id: Date.now(), d: document.getElementById('f-dia').value.padStart(2,'0'), n: document.getElementById('f-desc').value, r: 'Casa' }); save(); }
+    function addParcelamento() { db.parcelamentos.push({ id: Date.now(), desc: document.getElementById('p-desc').value, val: parseFloat(document.getElementById('p-val').value), qtd: parseInt(document.getElementById('p-qtd').value), startM: parseInt(pMSel.value), startY: parseInt(pYSel.value), resp: document.getElementById('p-resp').value || 'Geral' }); save(); }
+    function openEdit(id, type) { const curK = `${mSel.value}_${ySel.value}`, modal = document.getElementById('modal-edit'), btnPay = document.getElementById('modal-pay-btn'); let item, isPaid; document.getElementById('status-container-fixed').style.display = (type === 'fixed') ? 'block' : 'none'; if(type === 'fixed') { item = db.fixed_accounts.find(x => x.id == id); isPaid = db.meses_dados[curK]?.paid?.[id]; document.getElementById('edit-val').value = db.meses_dados[curK]?.fixed?.[id] || 0; btnPay.innerText = isPaid ? "REABRIR CONTA" : "PAGO"; btnPay.className = isPaid ? "btn btn-danger" : "btn btn-success"; } else { item = db.parcelamentos.find(x => x.id == id); document.getElementById('edit-val').value = item.val; } document.getElementById('edit-id').value = id; document.getElementById('edit-type').value = type; document.getElementById('edit-desc').value = item.n || item.desc; document.getElementById('edit-resp').value = item.r || item.resp; modal.style.display = 'flex'; }
+    function togglePayFromModal() { const id = document.getElementById('edit-id').value, k = `${mSel.value}_${ySel.value}`; if (!db.meses_dados[k]) db.meses_dados[k] = {paid:{}}; db.meses_dados[k].paid[id] = !db.meses_dados[k].paid[id]; save(); closeModals(); }
+    function saveGlobalEdit() { const id = document.getElementById('edit-id').value, type = document.getElementById('edit-type').value, n = document.getElementById('edit-desc').value, r = document.getElementById('edit-resp').value, v = parseFloat(document.getElementById('edit-val').value); if(type === 'fixed') { const acc = db.fixed_accounts.find(x => x.id == id); acc.n = n; acc.r = r; const k = `${mSel.value}_${ySel.value}`; if (!db.meses_dados[k]) db.meses_dados[k] = {fixed:{}}; if(!db.meses_dados[k].fixed) db.meses_dados[k].fixed={}; db.meses_dados[k].fixed[id] = v; } else { const p = db.parcelamentos.find(x => x.id == id); p.desc = n; p.val = v; p.resp = r; } save(); closeModals(); }
+    function deleteGlobal() { if(!confirm("Excluir?")) return; const id = document.getElementById('edit-id').value, type = document.getElementById('edit-type').value; if(type==='fixed') db.fixed_accounts=db.fixed_accounts.filter(x=>x.id!=id); else db.parcelamentos=db.parcelamentos.filter(x=>x.id!=id); save(); closeModals(); }
+    function render() {
+        const curM = parseInt(mSel.value), curY = parseInt(ySel.value), curK = `${curM}_${curY}`, curAbs = curY * 12 + curM;
+        let tF_Casa = 0, tP_Total = 0, tInc = 0, penCasa = 0, penR = {}, res = {};
+        for (let k in db.meses_dados) { const [m, y] = k.split('_').map(Number); const abs = y * 12 + m; if (abs < curAbs) { const d = db.meses_dados[k]; db.fixed_accounts.forEach(acc => { const v = d.fixed?.[acc.id] || 0; if(v > 0 && !d.paid?.[acc.id]) { if(acc.r === 'Casa' || !acc.r) penCasa += v; else { if(!res[acc.r]) res[acc.r]={f:0,p:0,pen:0}; res[acc.r].pen += v; } } }); db.parcelamentos.forEach(p => { const s=p.startY*12+p.startM, e=s+p.qtd-1; if(abs >= s && abs <= e && !d.resp_parcelas_paid?.[p.resp]) { if(!res[p.resp]) res[p.resp]={f:0,p:0,pen:0}; res[p.resp].pen += p.val; } }); } }
+        const data = db.meses_dados[curK] || { fixed: {}, paid: {}, recebidos: [], resp_parcelas_paid: {} };
+        const rBody = document.getElementById('recebidos-body'); rBody.innerHTML = '';
+        (data.recebidos || []).forEach(r => { tInc += r.val; rBody.innerHTML += `<tr><td>${r.desc}</td><td>R$ ${r.val.toFixed(2)}</td><td><button style="color:red; border:none; background:none" onclick="db.meses_dados['${curK}'].recebidos=db.meses_dados['${curK}'].recebidos.filter(x=>x.id!==${r.id}); save()">X</button></td></tr>`; });
+        const fBody = document.getElementById('fixed-body'); fBody.innerHTML = '';
+        db.fixed_accounts.forEach(acc => { const v = data.fixed?.[acc.id] || 0; const isP = data.paid?.[acc.id]; if(acc.r === 'Casa' || !acc.r) tF_Casa += v; else { if(!res[acc.r]) res[acc.r]={f:0,p:0,pen:0}; res[acc.r].f += v; } fBody.innerHTML += `<tr class="${isP?'paid-row':''}"><td>${acc.d}</td><td><span style="color:var(--primary); font-weight:700" onclick="openEdit(${acc.id}, 'fixed')">${acc.n}</span>${acc.r === 'Suzana'?'<span class="badge-suz">S</span>':''}</td><td>R$ ${v.toFixed(2)}</td></tr>`; });
+        const pBody = document.getElementById('parcelas-body'); pBody.innerHTML = '';
+        db.parcelamentos.forEach(p => { const s=p.startY*12+p.startM, e=s+p.qtd-1; if(curAbs >= s && curAbs <= e) { const n=(curAbs-s)+1; tP_Total += p.val; if(!res[p.resp]) res[p.resp]={f:0,p:0,pen:0}; res[p.resp].p += p.val; const paidR = data.resp_parcelas_paid?.[p.resp]; pBody.innerHTML += `<tr class="${paidR?'paid-row':''}"><td><span style="color:var(--primary); font-weight:700" onclick="openEdit(${p.id}, 'parcela')">${p.desc}</span></td><td>${p.startY}</td><td>${n}/${p.qtd}</td><td>R$ ${p.val.toFixed(2)}</td><td>${p.resp}</td></tr>`; } });
+        document.getElementById('stat-inc').innerText = `R$ ${tInc.toFixed(0)}`; document.getElementById('stat-exp').innerText = `R$ ${tF_Casa.toFixed(0)}`; document.getElementById('stat-pen').innerText = `R$ ${penCasa.toFixed(0)}`; document.getElementById('stat-bal').innerText = `R$ ${(tInc - (tF_Casa + penCasa)).toFixed(0)}`;
+        const area = document.getElementById('tabelas-por-pessoa'); area.innerHTML = `<div class="main-card"><div style="font-weight:800; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px">🏠 CASA</div><div style="font-size:0.75rem; display:flex; justify-content:space-between"><span>📌 FIXOS</span><span>R$ ${tF_Casa.toFixed(2)}</span></div>${penCasa>0?`<div style="font-size:0.75rem; color:var(--danger); display:flex; justify-content:space-between"><span>⚠️ ATRASO</span><span>R$ ${penCasa.toFixed(2)}</span></div>`:''}<div style="font-weight:800; margin-top:10px; border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between"><span>TOTAL CASA</span><span>R$ ${(tF_Casa+penCasa).toFixed(2)}</span></div></div>`;
+        for (let r in res) { const d = res[r], paidR = data.resp_parcelas_paid?.[r] || false, totalD = d.f + d.p + d.pen; if(paidR) { const autoId = `auto_pay_${r}`; const rAuto = data.recebidos.find(x => x.id === autoId); if(rAuto && rAuto.val !== totalD) rAuto.val = totalD; } area.innerHTML += `<div class="main-card"><div style="font-weight:800; border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:10px">👤 ${r.toUpperCase()}</div>${d.f>0?`<div style="font-size:0.75rem; display:flex; justify-content:space-between"><span>📌 FIXOS</span><span>R$ ${d.f.toFixed(2)}</span></div>`:''}<div style="font-size:0.75rem; display:flex; justify-content:space-between"><span>💳 PARCELAS</span><span>R$ ${d.p.toFixed(2)}</span></div>${d.pen>0?`<div style="font-size:0.75rem; color:var(--danger); display:flex; justify-content:space-between"><span>⚠️ ATRASOS</span><span>R$ ${d.pen.toFixed(2)}</span></div>`:''}<div style="display:flex; justify-content:space-between; align-items:center; background:#f1f5f9; padding:10px; border-radius:12px; margin-top:10px"><span>Pago?</span><input type="checkbox" style="width:30px; height:18px" ${paidR?'checked':''} onchange="toggleRespPay('${r}', this.checked, ${totalD})"></div><div style="font-weight:800; color:var(--primary); margin-top:10px; border-top:1px solid var(--border); padding-top:10px; display:flex; justify-content:space-between"><span>SUBTOTAL</span><span>R$ ${totalD.toFixed(2)}</span></div></div>`; }
+        checkAlarms();
+    }
+    function exportarDados() { const dStr = JSON.stringify(db); const b = new Blob([dStr], {type:'application/json'}); const u = URL.createObjectURL(b); const l = document.createElement('a'); l.href=u; l.download='backup.json'; l.click(); }
+    function importarDados(e) { const r = new FileReader(); r.onload=(ev)=>{ try { db=JSON.parse(ev.target.result); save(); window.location.reload(); } catch(e){alert("Erro");} }; r.readAsText(e.target.files[0]); }
+    function baixarPDF() { const p = document.querySelectorAll('.content-section'); p.forEach(s => s.style.display = 'block'); const h = document.querySelectorAll('.bottom-nav, .app-header, .main-card.form-group, .backup-row'); h.forEach(e => e.style.display = 'none'); html2pdf().set({ margin: 10, filename: 'Relatorio.pdf', html2canvas: { scale: 2 }, jsPDF: { format: 'a4' } }).from(document.body).save().then(() => { h.forEach(e => e.style.display = ''); render(); }); }
+    if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
+    render();
+</script>
+</body>
+</html>
